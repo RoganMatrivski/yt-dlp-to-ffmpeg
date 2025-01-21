@@ -24,8 +24,7 @@ static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
 
 #[tracing::instrument]
 fn main() -> Result<(), Report> {
-    let args = init::initialize()?;
-    let args = Rc::new(args);
+    let args = Rc::new(init::initialize()?);
 
     if let Some(path) = &args.target_dir {
         if path.exists() && !path.is_dir() {
@@ -44,7 +43,7 @@ fn main() -> Result<(), Report> {
         None
     };
 
-    let playlist_str = std::fs::read_to_string(&args.playlist)?;
+    let playlist_str = args.playlist.clone().contents()?;
     let vids = playlist_str
         .lines()
         .filter(parser::line_filter)

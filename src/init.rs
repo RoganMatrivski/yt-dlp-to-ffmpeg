@@ -1,4 +1,5 @@
 use clap::Parser;
+use clap_stdin::FileOrStdin;
 use color_eyre::Report;
 
 mod progressbar_logwriter;
@@ -34,7 +35,7 @@ pub struct Args {
 
     // TODO: Expand to be able to use single and playlist
     /// Playlist file
-    pub playlist: std::path::PathBuf,
+    pub playlist: FileOrStdin,
 }
 
 const VERBOSE_LEVEL: &[&str] = &["info", "debug", "trace"];
