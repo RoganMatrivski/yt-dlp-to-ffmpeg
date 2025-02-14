@@ -12,7 +12,7 @@ use crate::{
 
 pub fn handle_ytdlp<T: AsRef<Args>>(
     args: T,
-    i: usize,
+    i: Option<usize>,
     x: &str,
     op: Option<opendal::BlockingOperator>,
 ) -> Result<(), color_eyre::eyre::Report> {
@@ -44,7 +44,14 @@ pub fn handle_ytdlp<T: AsRef<Args>>(
     let _thumbnail = video.thumbnail.unwrap(); // TODO: Find out how to implement thumbnail in ffmpeg
     let url = bestformat.url.clone().unwrap();
     let ext = bestformat.ext.clone().unwrap();
-    let out_name = format!("{i:05}_{title}_[{id}].{ext}");
+    let out_name = format!(
+        "{idxstr}{title}_[{id}].{ext}",
+        idxstr = if let Some(i) = i {
+            format!("{i:05}_")
+        } else {
+            "".to_string()
+        }
+    );
     let out_name = sanitize_filename::sanitize_with_options(
         out_name,
         sanitize_filename::Options {
@@ -100,7 +107,7 @@ pub fn handle_ytdlp<T: AsRef<Args>>(
 
 pub fn handle_direct<T: AsRef<Args>>(
     args: T,
-    i: usize,
+    i: Option<usize>,
     x: &str,
     op: Option<opendal::BlockingOperator>,
 ) -> Result<(), color_eyre::eyre::Report> {
@@ -146,7 +153,15 @@ pub fn handle_direct<T: AsRef<Args>>(
     let _thumbnail = ""; // TODO: Find out how to implement thumbnail in ffmpeg
     let url = x;
     let ext = filepath.extension().and_then(|x| x.to_str()).unwrap();
-    let out_name = format!("{i:05}_{title}_[{id}].{ext}");
+    let out_name = format!(
+        "{idxstr}{title}_[{id}].{ext}",
+        idxstr = if let Some(i) = i {
+            format!("{i:05}_")
+        } else {
+            "".to_string()
+        }
+    );
+
     let out_name = sanitize_filename::sanitize_with_options(
         out_name,
         sanitize_filename::Options {

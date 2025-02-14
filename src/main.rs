@@ -56,7 +56,9 @@ fn main() -> Result<(), Report> {
         consts::MAIN_BAR_CHARSET,
     )?);
 
-    for (i, (ty, x)) in vids.into_iter().progress_with(total_pb).enumerate() {
+    for (i, (ty, x)) in vids.iter().progress_with(total_pb).enumerate() {
+        let i = if vids.len() > 1 { Some(i) } else { None };
+
         for _ in 0..args.retry {
             let run_result = match ty {
                 parser::DlTypes::YtDlp => main_functions::handle_ytdlp(&args, i, x, op.clone()),
