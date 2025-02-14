@@ -37,7 +37,7 @@ pub fn line_filter(line: &&str) -> bool {
 
 pub fn parse_line(line: &str) -> Result<(DlTypes, &str), color_eyre::eyre::Report> {
     if !line.starts_with("#[") {
-        return Ok((DlTypes::DirectLink, line));
+        return Ok((DlTypes::YtDlp, line));
     }
 
     let (ty, url) = nom_parse_line(line)
