@@ -26,7 +26,7 @@ static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
 fn main() -> Result<(), Report> {
     let args = Rc::new(init::initialize()?);
 
-    if let Some(path) = &args.target_dir {
+    if let Some(path) = &args.global_args.target_dir {
         if path.exists() && !path.is_dir() {
             panic!("Target path exists and is not a directory");
         }
@@ -37,29 +37,37 @@ fn main() -> Result<(), Report> {
         }
     }
 
-    let op: Option<opendal::BlockingOperator> = if let Some(ref key) = args.b2arg {
+    let op: Option<opendal::BlockingOperator> = if let Some(ref key) = args.global_args.b2arg {
         Some(funcs::setup_opendal(key)?)
     } else {
         None
     };
 
-    let playlist_str = args.playlist.clone().contents()?;
+    let playlist_str = match &args.command {
+        init::Subcommands::Playlist { playlist } => playlist.clone().contents()?,
+        init::Subcommands::Single { url } => url.clone(),
+    };
+
     let vids = playlist_str
         .lines()
         .filter(parser::line_filter)
         .map(parser::parse_line)
         .collect::<Result<Vec<_>, Report>>()?;
 
-    let total_pb = MPB.add(funcs::get_progbar(
-        vids.len() as u64,
-        consts::MAIN_BAR_FMT,
-        consts::MAIN_BAR_CHARSET,
-    )?);
+    let total_pb = if vids.len() > 1 {
+        MPB.add(funcs::get_progbar(
+            vids.len() as u64,
+            consts::MAIN_BAR_FMT,
+            consts::MAIN_BAR_CHARSET,
+        )?)
+    } else {
+        indicatif::ProgressBar::hidden()
+    };
 
     for (i, (ty, x)) in vids.iter().progress_with(total_pb).enumerate() {
-        let i = if vids.len() > 1 { Some(i) } else { None };
+        let i: Option<usize> = if vids.len() > 1 { Some(i) } else { None };
 
-        for _ in 0..args.retry {
+        for _ in 0..args.global_args.retry {
             let run_result = match ty {
                 parser::DlTypes::YtDlp => main_functions::handle_ytdlp(&args, i, x, op.clone()),
                 parser::DlTypes::DirectLink => {

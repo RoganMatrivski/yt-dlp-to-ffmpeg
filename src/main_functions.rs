@@ -20,8 +20,8 @@ pub fn handle_ytdlp<T: AsRef<Args>>(
     let args = args.as_ref();
 
     let res = match youtube_dl::YoutubeDl::new(x)
-        .youtube_dl_path(args.yt_dlp.clone().unwrap_or("yt-dlp".into()))
-        .cookies(args.cookies.canonicalize()?.to_string_lossy())
+        .youtube_dl_path(args.global_args.yt_dlp.clone().unwrap_or("yt-dlp".into()))
+        .cookies(args.global_args.cookies.canonicalize()?.to_string_lossy())
         .run()
     {
         Ok(x) => x,
@@ -61,7 +61,7 @@ pub fn handle_ytdlp<T: AsRef<Args>>(
         },
     );
 
-    let output_path = match args.target_dir {
+    let output_path = match args.global_args.target_dir {
         Some(ref x) => x.join(out_name),
         None => std::env::current_dir()?.join(out_name),
     };
@@ -127,13 +127,6 @@ pub fn handle_direct<T: AsRef<Args>>(
     let res = video_stream.height.unwrap();
 
     let response = reqwest::blocking::get(x)?;
-    // let content_disposition = response
-    //     .headers()
-    //     .get(reqwest::header::CONTENT_DISPOSITION)
-    //     .and_then(|cd| cd.to_str().ok())
-    //     .and_then(|cd| cd.split("filename=").nth(1))
-    //     .map(|filename| filename.trim_matches('"'))
-    //     .unwrap();
     let content_disposition_str = response
         .headers()
         .get(reqwest::header::CONTENT_DISPOSITION)
@@ -171,7 +164,7 @@ pub fn handle_direct<T: AsRef<Args>>(
         },
     );
 
-    let output_path = match args.target_dir {
+    let output_path = match args.global_args.target_dir {
         Some(ref x) => x.join(out_name),
         None => std::env::current_dir()?.join(out_name),
     };

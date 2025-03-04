@@ -1,12 +1,11 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use clap_stdin::FileOrStdin;
 use color_eyre::Report;
 
 mod progressbar_logwriter;
 
-#[derive(Parser, Clone)]
-#[command(author, version, about, long_about = None)]
-pub struct Args {
+#[derive(Debug, Clone, clap::Args)]
+pub struct GlobalArgs {
     /// Verbosity log
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
@@ -32,10 +31,25 @@ pub struct Args {
     /// Retry amount
     #[arg(short, long, default_value_t = 3)]
     pub retry: usize,
+}
 
-    // TODO: Expand to be able to use single and playlist
-    /// Playlist file
-    pub playlist: FileOrStdin,
+#[derive(Parser, Clone)]
+#[command(author, version, about, long_about = None)]
+pub struct Args {
+    #[clap(flatten)]
+    pub global_args: GlobalArgs,
+
+    /// Command
+    #[command(subcommand)]
+    pub command: Subcommands,
+}
+
+#[derive(Subcommand, Clone)]
+pub enum Subcommands {
+    /// Playlist
+    Playlist { playlist: FileOrStdin },
+    /// Single file
+    Single { url: String },
 }
 
 const VERBOSE_LEVEL: &[&str] = &["info", "debug", "trace"];
@@ -54,8 +68,8 @@ pub fn initialize() -> Result<Args, Report> {
     color_eyre::install()?;
     let args = Args::parse();
 
-    let verbosity = match args.verbose {
-        1..=3 => Some(VERBOSE_LEVEL[(args.verbose as usize) - 1]),
+    let verbosity = match args.global_args.verbose {
+        1..=3 => Some(VERBOSE_LEVEL[(args.global_args.verbose as usize) - 1]),
         _ => None,
     };
 
