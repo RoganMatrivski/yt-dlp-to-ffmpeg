@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use nom::character::complete::multispace0;
+use nom::combinator::opt;
 use nom::{
     bytes::complete::is_not,
     character::complete::char,
@@ -26,7 +27,10 @@ fn nom_parse_line(line: &str) -> IResult<&str, (&str, &str)> {
         char('#'),
         pair(
             delimited(char('['), is_not("]"), char(']')),
-            preceded(char(':'), preceded(multispace0, is_not("\n"))),
+            preceded(
+                multispace0,
+                preceded(opt(char(':')), preceded(multispace0, is_not("\n"))),
+            ),
         ),
     )(line)
 }
