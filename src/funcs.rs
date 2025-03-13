@@ -117,6 +117,7 @@ pub fn copy_to_b2(
     mpb: &indicatif::MultiProgress,
 ) -> Result<(), Report> {
     let file = std::fs::File::open(filepath)?;
+    let filename = filepath.file_name().unwrap().to_string_lossy();
 
     let output_filesize = file.metadata()?.len();
 
@@ -129,7 +130,7 @@ pub fn copy_to_b2(
     let mut wrapped_file = pb.wrap_read(file);
 
     let mut writer = op
-        .writer_with(filepath.to_string_lossy().as_ref())
+        .writer_with(&filename)
         .append(false)
         .call()?
         .into_std_write();

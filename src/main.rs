@@ -37,7 +37,7 @@ fn main() -> Result<(), Report> {
         }
     }
 
-    let op: Option<opendal::BlockingOperator> = if let Some(ref key) = args.global_args.b2arg {
+    let op: Option<opendal::BlockingOperator> = if let Some(ref key) = args.global_args.b2args {
         Some(funcs::setup_opendal(key)?)
     } else {
         None

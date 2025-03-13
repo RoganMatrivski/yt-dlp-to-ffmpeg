@@ -26,7 +26,7 @@ pub struct GlobalArgs {
 
     /// Format: B2;Key ID;App Key;Bucket;BucketID;Root path
     #[arg(long)]
-    pub b2arg: Option<String>,
+    pub b2args: Option<String>,
 
     /// Retry amount
     #[arg(short, long, default_value_t = 3)]
