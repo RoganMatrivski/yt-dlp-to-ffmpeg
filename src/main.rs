@@ -4,13 +4,7 @@ use color_eyre::Report;
 use indicatif::ProgressIterator;
 
 mod consts;
-mod funcs;
 mod init;
-
-mod auths;
-mod ext_functions;
-
-mod main_functions;
 
 mod parser;
 
@@ -40,8 +34,9 @@ static TOKEN_DIR_PATH: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
     dirpath
 });
 
+#[tokio::main]
 #[tracing::instrument]
-fn main() -> Result<(), Report> {
+async fn main() -> Result<(), Report> {
     let args = Rc::new(init::initialize()?);
 
     if let Some(path) = &args.global_args.target_dir {
@@ -55,68 +50,11 @@ fn main() -> Result<(), Report> {
         }
     }
 
-    let op: Option<opendal::BlockingOperator> = if let Some(ref key) = args.global_args.b2args {
+    let op: Option<opendal::Operator> = if let Some(ref key) = args.global_args.b2args {
         Some(funcs::setup_opendal(key)?)
     } else {
         None
     };
-
-    let playlist_str = match &args.command {
-        init::Subcommands::Playlist { playlist } => playlist.clone().contents()?,
-        init::Subcommands::Single { url } => url.clone(),
-
-        init::Subcommands::AuthGdrive {
-            client_id,
-            client_secret,
-        } => {
-            main_functions::gdrive_auth(&client_id, &client_secret)?;
-
-            return Ok(());
-        }
-    };
-
-    let vids = playlist_str
-        .lines()
-        .filter(parser::line_filter)
-        .map(parser::parse_line)
-        .collect::<Result<Vec<_>, Report>>()?;
-
-    let total_pb = if vids.len() > 1 {
-        MPB.add(funcs::get_progbar(
-            vids.len() as u64,
-            consts::MAIN_BAR_FMT,
-            consts::MAIN_BAR_CHARSET,
-        )?)
-    } else {
-        indicatif::ProgressBar::hidden()
-    };
-
-    for (i, (ty, x)) in vids.iter().progress_with(total_pb).enumerate() {
-        let i: Option<usize> = if vids.len() > 1 { Some(i) } else { None };
-
-        for retry_num in 0..args.global_args.retry {
-            let run_result = match ty {
-                parser::DlTypes::YtDlp => main_functions::handle_ytdlp(&args, i, x, op.clone()),
-                parser::DlTypes::DirectLink => {
-                    main_functions::handle_direct(&args, i, x, op.clone())
-                }
-                parser::DlTypes::GoogleDrive => {
-                    main_functions::handle_gdrive(&args, i, x, op.clone())
-                }
-            };
-
-            if run_result.is_ok() {
-                break;
-            }
-
-            let line_pos_str = i.map_or("".to_string(), |x| format!(" at line {}", x + 1));
-
-            tracing::warn!(
-                "Attempt #{retry_num}{line_pos_str} failed. Reason: {}",
-                run_result.unwrap_err()
-            );
-        }
-    }
 
     Ok(())
 }
