@@ -50,6 +50,10 @@ pub enum Subcommands {
     Playlist { playlist: FileOrStdin },
     /// Single file
     Single { url: String },
+    AuthGdrive {
+        client_id: String,
+        client_secret: String,
+    },
 }
 
 const VERBOSE_LEVEL: &[&str] = &["info", "debug", "trace"];

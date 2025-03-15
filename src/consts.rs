@@ -120,3 +120,5 @@ pub const VIDEO_EXTENSIONS: &[&str] = &[
     "mng", "mov", "mp2", "mp4", "mpe", "mpeg", "mpg", "mpv", "mxf", "nsv", "ogg", "ogv", "qt",
     "rm", "rmvb", "roq", "svi", "vob", "webm", "wmv", "yuv",
 ];
+
+pub const APP_ID: &[&str] = &["io.github", "roganmatrivski"];

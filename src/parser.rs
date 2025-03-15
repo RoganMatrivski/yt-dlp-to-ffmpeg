@@ -17,6 +17,12 @@ pub enum DlTypes {
     YtDlp,
     #[strum(ascii_case_insensitive, serialize = "direct", serialize = "dl")]
     DirectLink,
+    #[strum(
+        ascii_case_insensitive,
+        serialize = "google-drive",
+        serialize = "gdrive"
+    )]
+    GoogleDrive,
 }
 
 fn nom_parse_line(line: &str) -> IResult<&str, (&str, &str)> {

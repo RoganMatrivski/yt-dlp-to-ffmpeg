@@ -7,6 +7,9 @@ mod consts;
 mod funcs;
 mod init;
 
+mod auths;
+mod ext_functions;
+
 mod main_functions;
 
 mod parser;
@@ -20,6 +23,21 @@ static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
         .enable_all()
         .build()
         .unwrap()
+});
+
+static TOKEN_DIR_PATH: LazyLock<std::path::PathBuf> = LazyLock::new(|| {
+    let dirpath = match directories::ProjectDirs::from(
+        consts::APP_ID[0],
+        consts::APP_ID[1],
+        std::env!("CARGO_PKG_NAME"),
+    ) {
+        Some(x) => x.data_dir().to_path_buf(),
+        None => std::env::current_dir().expect("Failed to get current directory"),
+    };
+
+    std::fs::create_dir_all(&dirpath).unwrap();
+
+    dirpath
 });
 
 #[tracing::instrument]
@@ -46,6 +64,15 @@ fn main() -> Result<(), Report> {
     let playlist_str = match &args.command {
         init::Subcommands::Playlist { playlist } => playlist.clone().contents()?,
         init::Subcommands::Single { url } => url.clone(),
+
+        init::Subcommands::AuthGdrive {
+            client_id,
+            client_secret,
+        } => {
+            main_functions::gdrive_auth(&client_id, &client_secret)?;
+
+            return Ok(());
+        }
     };
 
     let vids = playlist_str
@@ -67,17 +94,27 @@ fn main() -> Result<(), Report> {
     for (i, (ty, x)) in vids.iter().progress_with(total_pb).enumerate() {
         let i: Option<usize> = if vids.len() > 1 { Some(i) } else { None };
 
-        for _ in 0..args.global_args.retry {
+        for retry_num in 0..args.global_args.retry {
             let run_result = match ty {
                 parser::DlTypes::YtDlp => main_functions::handle_ytdlp(&args, i, x, op.clone()),
                 parser::DlTypes::DirectLink => {
                     main_functions::handle_direct(&args, i, x, op.clone())
+                }
+                parser::DlTypes::GoogleDrive => {
+                    main_functions::handle_gdrive(&args, i, x, op.clone())
                 }
             };
 
             if run_result.is_ok() {
                 break;
             }
+
+            let line_pos_str = i.map_or("".to_string(), |x| format!(" at line {}", x + 1));
+
+            tracing::warn!(
+                "Attempt #{retry_num}{line_pos_str} failed. Reason: {}",
+                run_result.unwrap_err()
+            );
         }
     }
 
