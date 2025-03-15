@@ -1,4 +1,8 @@
-use color_eyre::eyre::Report;
+use color_eyre::eyre::{eyre, Context, Report};
+use ffmpeg_sidecar::{
+    command::FfmpegCommand,
+    event::{FfmpegEvent, LogLevel},
+};
 
 pub fn ffprobe_path_frametotal(path: impl AsRef<std::path::Path>) -> Result<Option<u64>, Report> {
     match ffprobe::ffprobe(path) {
@@ -19,6 +23,16 @@ pub fn ffprobe_path_frametotal(path: impl AsRef<std::path::Path>) -> Result<Opti
 
             Ok(count)
         }
+    }
+}
+
+pub fn ffprobe_path_checkerrors(path: impl AsRef<std::path::Path>) -> bool {
+    match ffprobe::ffprobe(path) {
+        Err(e) => {
+            tracing::warn!("ffprobe error: {e}");
+            true
+        }
+        Ok(_) => false,
     }
 }
 
@@ -138,4 +152,111 @@ pub fn copy_to_b2(
     std::io::copy(&mut wrapped_file, &mut writer)?;
 
     Ok(())
+}
+
+pub fn ffmpeg_transcode(
+    frame_total: Option<u64>,
+    src: &std::path::Path,
+    dst: &std::path::Path,
+    progbar_msg: &str,
+) -> Result<(), Report> {
+    let pb = crate::MPB.add(match frame_total {
+        Some(len) => get_progbar(
+            len,
+            crate::consts::MAIN_BAR_FMT_MSG,
+            crate::consts::SUB_BAR_CHARSET,
+        )?,
+        None => get_spinner(
+            crate::consts::SPINNER_FMT,
+            crate::consts::SPINNER_STRSET_MATERIAL,
+        )?,
+    });
+    pb.tick();
+    pb.set_message("0 0/s s:0 b:0kbps");
+
+    let mut ffmpeg = FfmpegCommand::new()
+        .input(src.to_string_lossy())
+        .codec_video("libx265")
+        .codec_audio("copy")
+        .pix_fmt("yuva420p10le")
+        .args(["-vf", crate::FFMPEG_SCALE])
+        .output(dst.to_string_lossy())
+        .overwrite()
+        .spawn()?;
+
+    ffmpeg
+        .iter()
+        .map_err(|m| eyre!(m))?
+        .map(|e| {
+            match e {
+                FfmpegEvent::Log(LogLevel::Error, e) => color_eyre::eyre::bail!(e),
+                FfmpegEvent::Progress(p) => update_pb_by_ffmpegprogress(&pb, p, progbar_msg),
+                _e => {}
+            };
+
+            color_eyre::eyre::Ok(())
+        })
+        .collect::<Result<Vec<_>, Report>>()?;
+
+    Ok(())
+}
+
+pub fn ffmpeg_check(src: &std::path::Path) -> Result<(), Report> {
+    let frame_total = ffprobe_path_frametotal(src)?;
+    let pb = crate::MPB.add(match frame_total {
+        Some(len) => get_progbar(
+            len,
+            crate::consts::MAIN_BAR_FMT_MSG,
+            crate::consts::SUB_BAR_CHARSET,
+        )?,
+        None => get_spinner(
+            crate::consts::SPINNER_FMT,
+            crate::consts::SPINNER_STRSET_MATERIAL,
+        )?,
+    });
+    pb.tick();
+    pb.set_message("0 0/s s:0 b:0kbps");
+
+    let mut ffmpeg = FfmpegCommand::new()
+        .input(src.to_string_lossy())
+        .format("null")
+        .output("-")
+        .spawn()?;
+
+    ffmpeg
+        .iter()
+        .map_err(|m| eyre!(m))?
+        .map(|e| {
+            match e {
+                FfmpegEvent::Log(LogLevel::Error, e) => color_eyre::eyre::bail!(e),
+                FfmpegEvent::Progress(p) => update_pb_by_ffmpegprogress(&pb, p, "Checking file"),
+                _e => {}
+            };
+
+            color_eyre::eyre::Ok(())
+        })
+        .collect::<Result<Vec<_>, Report>>()?;
+
+    Ok(())
+}
+
+pub fn get_md5_from_path(path: &std::path::Path) -> Result<String, color_eyre::eyre::Report> {
+    let file = std::fs::File::open(path)?;
+    let pb = crate::MPB.add(crate::funcs::get_progbar(
+        file.metadata()
+            .wrap_err("Failed to get existing file size")?
+            .len(),
+        crate::consts::SUB_BAR_FMT_MSG,
+        crate::consts::MAIN_BAR_CHARSET,
+    )?);
+    let file = pb.wrap_read(file);
+
+    get_md5(file)
+}
+
+pub fn get_md5<T: std::io::Read>(reader: T) -> Result<String, color_eyre::eyre::Report> {
+    let mut md5writer = crate::ext_functions::md5writer::Md5Writer::new(std::io::sink());
+    let mut reader = reader;
+    std::io::copy(&mut reader, &mut md5writer)?;
+    Ok(md5writer.md5())
 }

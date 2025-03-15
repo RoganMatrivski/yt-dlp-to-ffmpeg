@@ -289,37 +289,26 @@ pub fn handle_gdrive<T: AsRef<Args>>(
 
     tracing::trace!("Frame total probe result: {frame_total:?}");
 
-    let pb = MPB.add(match frame_total {
-        Some(len) => funcs::get_progbar(len, consts::MAIN_BAR_FMT_MSG, consts::SUB_BAR_CHARSET)?,
-        None => funcs::get_spinner(consts::SPINNER_FMT, consts::SPINNER_STRSET_MATERIAL)?,
-    });
-    pb.tick();
-    pb.set_message("0 0/s s:0 b:0kbps");
-
-    let mut ffmpeg = FfmpegCommand::new()
-        .input(output_path.to_string_lossy())
-        .codec_video("libx265")
-        .codec_audio("copy")
-        .pix_fmt("yuva420p10le")
-        .args(["-vf", FFMPEG_SCALE])
-        .output(encode_output_path.to_string_lossy())
-        .overwrite()
-        .spawn()?;
-
-    ffmpeg.iter().unwrap().for_each(|e| match e {
-        FfmpegEvent::Log(LogLevel::Error, e) => tracing::error!("Error: {}", e),
-        FfmpegEvent::Progress(p) => {
-            funcs::update_pb_by_ffmpegprogress(&pb, p, format!("{title}").as_str())
-        }
-        _e => {}
-    });
-
-    pb.finish_and_clear();
+    funcs::ffmpeg_transcode(
+        frame_total,
+        &output_path,
+        &encode_output_path,
+        format!("{title}").as_str(),
+    )?;
 
     tracing::info!("Finished encoding {title}");
 
+    tracing::trace!("Verifying {title}...");
+    funcs::ffmpeg_check(&encode_output_path)?;
+    tracing::trace!("Verified {title}...");
+
+    // OpenDAL doesn't support checksumming yet
+    tracing::info!("MD5: {}", funcs::get_md5_from_path(&encode_output_path)?);
+
     std::fs::remove_file(&output_path)?;
     std::fs::rename(&encode_output_path, &final_output_path)?;
+
+    tracing::info!("MD5: {}", funcs::get_md5_from_path(&final_output_path)?);
 
     if let Some(op) = &op {
         copy_to_b2(&final_output_path, op, &MPB)?;
