@@ -2,5 +2,7 @@
 
 /tmp
 
+/tools
+
 yt-dlp*
 *.txt
