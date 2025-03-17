@@ -1,5 +1,17 @@
 #![allow(dead_code)]
 
+// Shamelessly stolen from `is-video` package from sindresorhus
+// https://github.com/sindresorhus/is-video/blob/3ba58fa79b52949a0915e25f3fd2765b7a8a9809/index.js#L5
+pub const VIDEO_EXTENSIONS: &[&str] = &[
+    "3g2", "3gp", "aaf", "asf", "avchd", "avi", "drc", "flv", "m2v", "m3u8", "m4p", "m4v", "mkv",
+    "mng", "mov", "mp2", "mp4", "mpe", "mpeg", "mpg", "mpv", "mxf", "nsv", "ogg", "ogv", "qt",
+    "rm", "rmvb", "roq", "svi", "vob", "webm", "wmv", "yuv",
+];
+
+pub const APP_ID: &[&str] = &["io.github", "roganmatrivski"];
+pub const FFMPEG_SCALE: &str =
+    r#"scale='if(lt(iw,ih),min(1080,iw),-1)':'if(lt(iw,ih),-1,min(1080,ih))'"#;
+
 pub const MAIN_BAR_FMT: &str =
     "[{elapsed_precise}] {wide_bar:.blue} {pos:>}/{len} ({percent}%) eta {eta_precise:.blue}";
 pub const MAIN_BAR_FMT_MSG: &str =
@@ -112,13 +124,3 @@ pub const SPINNER_STRSET_MATERIAL: &[&str; 92] = &[
 ];
 
 pub const PB_PATH_CUTOFF_LEN: usize = 32;
-
-// Shamelessly stolen from `is-video` package from sindresorhus
-// https://github.com/sindresorhus/is-video/blob/3ba58fa79b52949a0915e25f3fd2765b7a8a9809/index.js#L5
-pub const VIDEO_EXTENSIONS: &[&str] = &[
-    "3g2", "3gp", "aaf", "asf", "avchd", "avi", "drc", "flv", "m2v", "m3u8", "m4p", "m4v", "mkv",
-    "mng", "mov", "mp2", "mp4", "mpe", "mpeg", "mpg", "mpv", "mxf", "nsv", "ogg", "ogv", "qt",
-    "rm", "rmvb", "roq", "svi", "vob", "webm", "wmv", "yuv",
-];
-
-pub const APP_ID: &[&str] = &["io.github", "roganmatrivski"];

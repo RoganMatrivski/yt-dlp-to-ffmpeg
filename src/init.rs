@@ -1,6 +1,8 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
-use clap_stdin::FileOrStdin;
-use color_eyre::Report;
+use clap_stdin::MaybeStdin;
+use color_eyre::eyre::{bail, Context, Error};
 
 mod progressbar_logwriter;
 
@@ -12,7 +14,7 @@ pub struct GlobalArgs {
 
     /// Use (or create) cookie file
     #[arg(long)]
-    pub cookies: std::path::PathBuf,
+    pub cookies: Option<std::path::PathBuf>,
 
     /// yt-dlp path. Will use the environment PATH if not provided
     #[arg(long)]
@@ -33,6 +35,16 @@ pub struct GlobalArgs {
     pub retry: usize,
 }
 
+impl GlobalArgs {
+    pub fn get_cookie_path(&self) -> PathBuf {
+        if let Some(c) = self.cookies.clone() {
+            c
+        } else {
+            crate::statics::PROJECT_DIR_PATH.join("cookie.txt")
+        }
+    }
+}
+
 #[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
@@ -46,14 +58,52 @@ pub struct Args {
 
 #[derive(Subcommand, Clone)]
 pub enum Subcommands {
-    /// Playlist
-    Playlist { playlist: FileOrStdin },
-    /// Single file
-    Single { url: String },
-    AuthGdrive {
+    Download(DownloadOpts),
+    Authenticate {
+        #[command(subcommand)]
+        service: AuthorizeCommands,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum AuthorizeCommands {
+    GoogleDrive {
         client_id: String,
         client_secret: String,
     },
+}
+
+#[derive(Debug, Clone, clap::Args)]
+pub struct DownloadOpts {
+    /// Path to the input file
+    #[arg(
+        short,
+        long,
+        value_name = "FILE",
+        conflicts_with = "input_string",
+        required_unless_present = "input_string"
+    )]
+    input_file: Option<PathBuf>,
+
+    /// Input string
+    #[arg(
+        value_name = "STRING",
+        conflicts_with = "input_file",
+        required_unless_present = "input_file"
+    )]
+    input_string: Option<MaybeStdin<String>>,
+}
+
+impl DownloadOpts {
+    pub fn contents(self) -> Result<String, Error> {
+        if let Some(p) = self.input_file {
+            std::fs::read_to_string(p).wrap_err("Failed to read file")
+        } else if let Some(c) = self.input_string {
+            Ok(c.to_string())
+        } else {
+            bail!("Failed to get contents")
+        }
+    }
 }
 
 const VERBOSE_LEVEL: &[&str] = &["info", "debug", "trace"];
@@ -64,7 +114,7 @@ macro_rules! get_this_pkg_name {
     };
 }
 
-pub fn initialize() -> Result<Args, Report> {
+pub fn initialize() -> Result<Args, Error> {
     use tracing_error::ErrorLayer;
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
@@ -91,7 +141,7 @@ pub fn initialize() -> Result<Args, Report> {
     let fmt_layer = fmt::layer().with_writer(move || -> Box<dyn std::io::Write> {
         Box::new(progressbar_logwriter::ProgressBarLogWriter::new(
             std::io::stderr(),
-            &crate::MPB,
+            &crate::statics::MPB,
         ))
     });
 

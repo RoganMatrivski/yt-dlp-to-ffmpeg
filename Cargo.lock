@@ -123,6 +123,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-compat"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7bab94bde396a3f7b4962e396fdad640e241ed797d4d8d77fc8c237d14c58fc0"
+dependencies = [
+ "futures-core",
+ "futures-io",
+ "once_cell",
+ "pin-project-lite",
+ "tokio",
+]
+
+[[package]]
+name = "async-recursion"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b43422f69d8ff38f95f1b2bb76517c91589a924d1559a0e935d7c8ce0274c11"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.84"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3056,6 +3080,8 @@ dependencies = [
 name = "yt-dlp-to-ffmpeg"
 version = "0.1.0"
 dependencies = [
+ "async-compat",
+ "async-recursion",
  "clap",
  "clap-stdin",
  "color-eyre",
@@ -3068,6 +3094,7 @@ dependencies = [
  "http-body-util",
  "indicatif",
  "md5",
+ "mime",
  "nom",
  "opendal",
  "reqwest",
