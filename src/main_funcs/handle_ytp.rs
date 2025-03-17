@@ -4,27 +4,21 @@ use crate::{
     funcs::{
         ffmpeg::ffmpeg_transcode, opendal::copy_path_to_b2, progressbar::create_indefinite_spinner,
     },
-    init::Args,
+    init::DownloadOpts,
     statics::MPB,
 };
 
-pub async fn handle_ytdlp<T: AsRef<Args>>(
-    args: T,
+pub async fn handle_ytdlp(
+    args: &DownloadOpts,
     i: Option<usize>,
     x: &str,
     op: Option<opendal::Operator>,
 ) -> Result<(), Error> {
     let pb = create_indefinite_spinner(MPB.clone(), format!("Fetching {x}"))?;
-    let args = args.as_ref();
 
     let res = match youtube_dl::YoutubeDl::new(x)
-        .youtube_dl_path(args.global_args.yt_dlp.clone().unwrap_or("yt-dlp".into()))
-        .cookies(
-            args.global_args
-                .get_cookie_path()
-                .canonicalize()?
-                .to_string_lossy(),
-        )
+        .youtube_dl_path(args.yt_dlp.clone().unwrap_or("yt-dlp".into()))
+        .cookies(args.get_cookie_path().canonicalize()?.to_string_lossy())
         .run()
     {
         Ok(x) => x,
@@ -64,7 +58,7 @@ pub async fn handle_ytdlp<T: AsRef<Args>>(
         },
     );
 
-    let output_path = match args.global_args.target_dir {
+    let output_path = match args.target_dir {
         Some(ref x) => x.join(out_name),
         None => std::env::current_dir()?.join(out_name),
     };

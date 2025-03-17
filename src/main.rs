@@ -18,24 +18,7 @@ mod parser;
 async fn main() -> Result<(), Report> {
     let args = Rc::new(init::initialize()?);
 
-    if let Some(path) = &args.global_args.target_dir {
-        if path.exists() && !path.is_dir() {
-            panic!("Target path exists and is not a directory");
-        }
-
-        if !path.exists() {
-            tracing::info!("Target directory not found, creating...");
-            std::fs::create_dir_all(path)?;
-        }
-    }
-
-    let op: Option<opendal::Operator> = if let Some(ref key) = args.global_args.b2args {
-        Some(funcs::opendal::setup_opendal(key)?)
-    } else {
-        None
-    };
-
-    let playlist_str = match &args.command {
+    let args = match &args.command {
         init::Subcommands::Authenticate { service } => {
             match &service {
                 init::AuthorizeCommands::GoogleDrive {
@@ -46,8 +29,27 @@ async fn main() -> Result<(), Report> {
 
             return Ok(());
         }
-        init::Subcommands::Download(download_opts) => download_opts.clone().contents()?,
+        init::Subcommands::Download(download_opts) => download_opts,
     };
+
+    if let Some(path) = &args.target_dir {
+        if path.exists() && !path.is_dir() {
+            panic!("Target path exists and is not a directory");
+        }
+
+        if !path.exists() {
+            tracing::info!("Target directory not found, creating...");
+            std::fs::create_dir_all(path)?;
+        }
+    }
+
+    let op: Option<opendal::Operator> = if let Some(ref key) = args.b2args {
+        Some(funcs::opendal::setup_opendal(key)?)
+    } else {
+        None
+    };
+
+    let playlist_str = args.clone().contents()?;
 
     let vids = playlist_str
         .lines()
@@ -68,14 +70,14 @@ async fn main() -> Result<(), Report> {
     for (i, (ty, x)) in vids.iter().progress_with(total_pb).enumerate() {
         let i: Option<usize> = if vids.len() > 1 { Some(i) } else { None };
 
-        for retry_num in 0..args.global_args.retry {
+        for retry_num in 0..args.retry {
             let run_result = match ty {
-                parser::DlTypes::YtDlp => main_funcs::handle_ytdlp(&args, i, x, op.clone()).await,
+                parser::DlTypes::YtDlp => main_funcs::handle_ytdlp(args, i, x, op.clone()).await,
                 parser::DlTypes::DirectLink => {
-                    main_funcs::handle_directdl::handle_direct(&args, i, x, op.clone()).await
+                    main_funcs::handle_directdl::handle_direct(args, i, x, op.clone()).await
                 }
                 parser::DlTypes::GoogleDrive => {
-                    services::google_drive::handle_google_drive(&args, i, x, op.clone()).await
+                    services::google_drive::handle_google_drive(args, i, x, op.clone()).await
                 }
             };
 

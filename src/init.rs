@@ -11,43 +11,11 @@ pub struct GlobalArgs {
     /// Verbosity log
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
-
-    /// Use (or create) cookie file
-    #[arg(long)]
-    pub cookies: Option<std::path::PathBuf>,
-
-    /// yt-dlp path. Will use the environment PATH if not provided
-    #[arg(long)]
-    pub yt_dlp: Option<std::path::PathBuf>,
-
-    /// Conversion target directory.
-    /// Will create dir if not exist, and set ffmpeg conversion target to this dir.
-    /// If using OpenDAL, will set the target to the OpenDAL directory.
-    #[arg(long)]
-    pub target_dir: Option<std::path::PathBuf>,
-
-    /// Format: B2;Key ID;App Key;Bucket;BucketID;Root path
-    #[arg(long)]
-    pub b2args: Option<String>,
-
-    /// Retry amount
-    #[arg(short, long, default_value_t = 3)]
-    pub retry: usize,
-}
-
-impl GlobalArgs {
-    pub fn get_cookie_path(&self) -> PathBuf {
-        if let Some(c) = self.cookies.clone() {
-            c
-        } else {
-            crate::statics::PROJECT_DIR_PATH.join("cookie.txt")
-        }
-    }
 }
 
 #[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
-pub struct Args {
+pub struct AppArgs {
     #[clap(flatten)]
     pub global_args: GlobalArgs,
 
@@ -75,6 +43,27 @@ pub enum AuthorizeCommands {
 
 #[derive(Debug, Clone, clap::Args)]
 pub struct DownloadOpts {
+    /// Use (or create) cookie file
+    #[arg(long)]
+    pub cookies: Option<std::path::PathBuf>,
+
+    /// yt-dlp path. Will use the environment PATH if not provided
+    #[arg(long)]
+    pub yt_dlp: Option<std::path::PathBuf>,
+
+    /// Conversion target directory.
+    /// Will create dir if not exist, and set ffmpeg conversion target to this dir.
+    #[arg(long)]
+    pub target_dir: Option<std::path::PathBuf>,
+
+    /// Format: B2;Key ID;App Key;Bucket;BucketID;Root path
+    #[arg(long)]
+    pub b2args: Option<String>,
+
+    /// Retry amount
+    #[arg(short, long, default_value_t = 3)]
+    pub retry: usize,
+
     /// Path to the input file
     #[arg(
         short,
@@ -95,6 +84,14 @@ pub struct DownloadOpts {
 }
 
 impl DownloadOpts {
+    pub fn get_cookie_path(&self) -> PathBuf {
+        if let Some(c) = self.cookies.clone() {
+            c
+        } else {
+            crate::statics::PROJECT_DIR_PATH.join("cookie.txt")
+        }
+    }
+
     pub fn contents(self) -> Result<String, Error> {
         if let Some(p) = self.input_file {
             std::fs::read_to_string(p).wrap_err("Failed to read file")
@@ -114,13 +111,13 @@ macro_rules! get_this_pkg_name {
     };
 }
 
-pub fn initialize() -> Result<Args, Error> {
+pub fn initialize() -> Result<AppArgs, Error> {
     use tracing_error::ErrorLayer;
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
 
     color_eyre::install()?;
-    let args = Args::parse();
+    let args = AppArgs::parse();
 
     let verbosity = match args.global_args.verbose {
         1..=3 => Some(VERBOSE_LEVEL[(args.global_args.verbose as usize) - 1]),

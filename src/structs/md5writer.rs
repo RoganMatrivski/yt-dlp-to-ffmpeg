@@ -23,6 +23,7 @@ impl<T: Write> Md5Writer<T> {
 }
 
 impl<T: AsyncWrite> Md5Writer<T> {
+    #[allow(dead_code)]
     pub fn new_async(writer: T) -> Self {
         Self {
             writer,

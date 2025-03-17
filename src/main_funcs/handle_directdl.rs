@@ -3,18 +3,17 @@ use crate::{
         ffmpeg::ffmpeg_transcode, ffprobe::ffprobe_path, opendal::copy_path_to_b2,
         progressbar::create_indefinite_spinner,
     },
-    init::Args,
+    init::DownloadOpts,
     statics::MPB,
 };
 
-pub async fn handle_direct<T: AsRef<Args>>(
-    args: T,
+pub async fn handle_direct(
+    args: &DownloadOpts,
     i: Option<usize>,
     id: &str,
     op: Option<opendal::Operator>,
 ) -> Result<(), color_eyre::eyre::Error> {
     let pb = create_indefinite_spinner(MPB.clone(), format!("Fetching {id}"))?;
-    let args = args.as_ref();
 
     let res = ffprobe_path(id)?;
 
@@ -66,7 +65,7 @@ pub async fn handle_direct<T: AsRef<Args>>(
         },
     );
 
-    let output_path = match args.global_args.target_dir {
+    let output_path = match args.target_dir {
         Some(ref x) => x.join(out_name),
         None => std::env::current_dir()?.join(out_name),
     };

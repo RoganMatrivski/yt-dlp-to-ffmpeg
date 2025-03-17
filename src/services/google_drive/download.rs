@@ -12,7 +12,7 @@ use indicatif::ProgressIterator;
 use crate::{
     consts,
     funcs::{ffmpeg::ffmpeg_transcode, opendal::copy_path_to_b2, progressbar::get_progbar},
-    init::Args,
+    init::DownloadOpts,
 };
 
 type Hub = DriveHub<HttpsConnector<HttpConnector>>;
@@ -33,8 +33,8 @@ pub async fn get_body_from_id(
     Ok(response.into_body())
 }
 
-pub async fn handle_google_drive<T: AsRef<Args>>(
-    args: T,
+pub async fn handle_google_drive(
+    args: &DownloadOpts,
     i: Option<usize>,
     file_id: &str,
     op: Option<opendal::Operator>,
@@ -44,7 +44,7 @@ pub async fn handle_google_drive<T: AsRef<Args>>(
     let nodes = super::node::fetch_nodes(&hub, file_id, Arc::new(None)).await?;
     let items = nodes.get_tuples();
 
-    let output_dir = match args.as_ref().global_args.target_dir {
+    let output_dir = match args.target_dir {
         Some(ref x) => x,
         None => &std::env::current_dir()?,
     };
