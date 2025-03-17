@@ -43,22 +43,32 @@ pub enum AuthorizeCommands {
 
 #[derive(Debug, Clone, clap::Args)]
 pub struct DownloadOpts {
-    /// Use (or create) cookie file
+    /// Use (or create) cookie file on custom path. Defaults to projects data folder. Varies by OS.
     #[arg(long)]
     pub cookies: Option<std::path::PathBuf>,
 
-    /// yt-dlp path. Will use the environment PATH if not provided
+    /// yt-dlp path. Will use the environment PATH if not provided.
     #[arg(long)]
     pub yt_dlp: Option<std::path::PathBuf>,
 
     /// Conversion target directory.
     /// Will create dir if not exist, and set ffmpeg conversion target to this dir.
-    #[arg(long)]
+    #[arg(long, short = 'd', verbatim_doc_comment)]
     pub target_dir: Option<std::path::PathBuf>,
 
     /// Format: B2;Key ID;App Key;Bucket;BucketID;Root path
-    #[arg(long)]
+    /// Upload downloaded path to OpenDAL supported service instead
+    /// Will delete downloaded video unless specified with --skip-video-delete
+    #[arg(long, verbatim_doc_comment)]
     pub b2args: Option<String>,
+
+    /// Skip video deletion on upload stage
+    #[arg(long, action)]
+    pub skip_video_delete: bool,
+
+    /// Removes index number from file name
+    #[arg(long, action)]
+    pub no_index_filename: bool,
 
     /// Retry amount
     #[arg(short, long, default_value_t = 3)]

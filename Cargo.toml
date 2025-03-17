@@ -38,6 +38,3 @@ youtube_dl = "0.10"
 
 [profile.dev.package.backtrace]
 opt-level = 3
-
-[workspace]
-members = [".", "./ext_lib/youtube-dl-rs"]

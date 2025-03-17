@@ -43,10 +43,13 @@ pub async fn handle_ytdlp(
     let ext = bestformat.ext.clone().unwrap();
     let out_name = format!(
         "{idxstr}{title}_[{id}].{ext}",
-        idxstr = if let Some(i) = i {
-            format!("{i:05}_")
+        idxstr = if !args.no_index_filename {
+            match i {
+                Some(index) => format!("{:05}_", index),
+                None => String::new(),
+            }
         } else {
-            "".to_string()
+            String::new()
         }
     );
     let out_name = sanitize_filename::sanitize_with_options(
@@ -67,7 +70,9 @@ pub async fn handle_ytdlp(
 
     if let Some(op) = &op {
         copy_path_to_b2(&output_path, op).await?;
-        std::fs::remove_file(&output_path)?;
+        if !args.skip_video_delete {
+            std::fs::remove_file(&output_path)?;
+        }
     };
 
     Ok(())

@@ -78,10 +78,13 @@ pub async fn handle_google_drive(
 
         let out_name = format!(
             "{idxstr}{output_path_stem}.{output_path_ext}",
-            idxstr = if let Some(i) = i {
-                format!("{i:05}_")
+            idxstr = if !args.no_index_filename {
+                match i {
+                    Some(index) => format!("{:05}_", index),
+                    None => String::new(),
+                }
             } else {
-                "".to_string()
+                String::new()
             }
         );
 
@@ -116,7 +119,9 @@ pub async fn handle_google_drive(
 
         if let Some(op) = &op {
             copy_path_to_b2(&final_output_path, op).await?;
-            std::fs::remove_file(&final_output_path)?;
+            if !args.skip_video_delete {
+                std::fs::remove_file(&final_output_path)?;
+            }
         };
     }
 
