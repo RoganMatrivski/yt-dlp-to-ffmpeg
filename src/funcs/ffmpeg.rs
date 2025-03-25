@@ -16,7 +16,7 @@ pub fn ffmpeg_transcode<S: AsRef<str>>(
     dst: &std::path::Path,
     progbar_msg: &str,
 ) -> Result<(), Error> {
-    let frame_total = ffprobe_path_frametotal(&src.as_ref())?;
+    let frame_total = ffprobe_path_frametotal(&src.as_ref());
 
     let pb = MPB.add(match frame_total {
         Some(len) => get_progbar(
@@ -60,7 +60,7 @@ pub fn ffmpeg_transcode<S: AsRef<str>>(
 }
 
 pub fn ffmpeg_check(src: &std::path::Path) -> Result<(), Error> {
-    let frame_total = ffprobe_path_frametotal(src)?;
+    let frame_total = ffprobe_path_frametotal(src);
     let pb = MPB.add(match frame_total {
         Some(len) => get_progbar(
             len,
