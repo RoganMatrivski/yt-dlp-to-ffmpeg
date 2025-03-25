@@ -25,11 +25,15 @@ async fn main() -> Result<(), Report> {
                     client_id,
                     client_secret,
                 } => services::google_drive::auth::authenticate(&client_id, &client_secret).await?,
+                init::AuthorizeCommands::Dropbox { client_id } => {
+                    services::dropbox::auth::authenticate(client_id).await?;
+                }
             };
 
             return Ok(());
         }
         init::Subcommands::Download(download_opts) => download_opts,
+        _ => unimplemented!(),
     };
 
     if let Some(path) = &args.target_dir {
@@ -78,6 +82,9 @@ async fn main() -> Result<(), Report> {
                 }
                 parser::DlTypes::GoogleDrive => {
                     services::google_drive::handle_google_drive(args, i, x, op.clone()).await
+                }
+                parser::DlTypes::Dropbox => {
+                    services::dropbox::handler::handle_dropbox(args, i, x, op.clone()).await
                 }
             };
 

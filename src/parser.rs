@@ -23,6 +23,8 @@ pub enum DlTypes {
         serialize = "gdrive"
     )]
     GoogleDrive,
+    #[strum(ascii_case_insensitive, serialize = "dropbox")]
+    Dropbox,
 }
 
 fn nom_parse_line(line: &str) -> IResult<&str, (&str, &str)> {
