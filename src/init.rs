@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use clap_stdin::MaybeStdin;
 use color_eyre::eyre::{bail, Context, Error};
 
+pub mod db;
 mod progressbar_logwriter;
 
 #[derive(Debug, Clone, clap::Args)]
@@ -31,6 +32,10 @@ pub enum Subcommands {
         #[command(subcommand)]
         service: AuthorizeCommands,
     },
+    Database {
+        #[command(subcommand)]
+        command: db::DbCommands,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -38,6 +43,9 @@ pub enum AuthorizeCommands {
     GoogleDrive {
         client_id: String,
         client_secret: String,
+    },
+    Dropbox {
+        client_id: String,
     },
 }
 
@@ -71,7 +79,7 @@ pub struct DownloadOpts {
     pub no_index_filename: bool,
 
     /// Retry amount
-    #[arg(short, long, default_value_t = 3)]
+    #[arg(short, long, default_value_t = 5)]
     pub retry: usize,
 
     /// Path to the input file

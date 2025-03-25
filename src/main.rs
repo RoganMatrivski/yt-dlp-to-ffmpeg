@@ -32,6 +32,11 @@ async fn main() -> Result<(), Report> {
 
             return Ok(());
         }
+        init::Subcommands::Database { command } => {
+            return init::db::handle_db_commands(command).await;
+
+            // return Ok(());
+        }
         init::Subcommands::Download(download_opts) => download_opts,
         _ => unimplemented!(),
     };
@@ -85,6 +90,14 @@ async fn main() -> Result<(), Report> {
                 }
                 parser::DlTypes::Dropbox => {
                     services::dropbox::handler::handle_dropbox(args, i, x, op.clone()).await
+                }
+            };
+
+            let is_inner_retry = {
+                match ty {
+                    parser::DlTypes::GoogleDrive => true,
+                    parser::DlTypes::Dropbox => true,
+                    _ => false,
                 }
             };
 
