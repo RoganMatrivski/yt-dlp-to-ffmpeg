@@ -1,4 +1,4 @@
-use color_eyre::eyre::Error;
+use color_eyre::eyre::{ContextCompat, Error};
 
 use crate::{
     funcs::{
@@ -32,17 +32,17 @@ pub async fn handle_ytdlp(
 
     pb.finish_and_clear();
 
-    let video = res.into_single_video().unwrap();
-    let formats = video.formats.unwrap();
-    let bestformat = formats.last().unwrap();
+    let video = res.into_single_video().wrap_err("Failed to get video")?;
+    let formats = video.formats.wrap_err("Failed to get formats")?;
+    let bestformat = formats.last().wrap_err("Failed to get bestformat")?;
 
-    let res = bestformat.resolution.clone().unwrap();
+    let res = bestformat.resolution.clone().unwrap_or("".to_string());
 
     let id = video.id;
-    let title = video.title.unwrap();
-    let _thumbnail = video.thumbnail.unwrap(); // TODO: Find out how to implement thumbnail in ffmpeg
-    let url = bestformat.url.clone().unwrap();
-    let ext = bestformat.ext.clone().unwrap();
+    let title = video.title.wrap_err("Failed to get title")?;
+    let _thumbnail = video.thumbnail.wrap_err("Failed to get thumbnail")?; // TODO: Find out how to implement thumbnail in _thumbnailmpeg
+    let url = bestformat.url.clone().wrap_err("Failed to get url")?;
+    let ext = bestformat.ext.clone().wrap_err("Failed to get ext")?;
     let out_name = format!(
         "{idxstr}{title}_[{id}].{ext}",
         idxstr = if !args.no_index_filename {

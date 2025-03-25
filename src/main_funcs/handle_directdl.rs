@@ -1,3 +1,5 @@
+use color_eyre::eyre::ContextCompat;
+
 use crate::{
     funcs::{
         ffmpeg::ffmpeg_transcode,
@@ -43,12 +45,18 @@ pub async fn handle_direct(
 
     let filepath = std::path::Path::new(content_disposition);
 
-    let title = filepath.file_stem().and_then(|x| x.to_str()).unwrap();
+    let title = filepath
+        .file_stem()
+        .and_then(|x| x.to_str())
+        .wrap_err("File stem somehow ends with '..'")?;
 
     let id = title;
     let _thumbnail = ""; // TODO: Find out how to implement thumbnail in ffmpeg
     let url = id;
-    let ext = filepath.extension().and_then(|x| x.to_str()).unwrap();
+    let ext = filepath
+        .extension()
+        .and_then(|x| x.to_str())
+        .unwrap_or("mp4");
     let out_name = format!(
         "{idxstr}{title}_[{id}].{ext}",
         idxstr = if !args.no_index_filename {
