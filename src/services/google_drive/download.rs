@@ -11,7 +11,11 @@ use indicatif::ProgressIterator;
 
 use crate::{
     consts,
-    funcs::{ffmpeg::ffmpeg_transcode, opendal::copy_path_to_b2, progressbar::get_progbar},
+    funcs::{
+        ffmpeg::ffmpeg_transcode,
+        opendal::{check_path_exists, copy_path_to_b2},
+        progressbar::get_progbar,
+    },
     init::DownloadOpts,
 };
 
@@ -65,7 +69,6 @@ pub async fn handle_google_drive(
         let file_path: PathBuf = output_dir.join(path);
 
         let body = get_body_from_id(&hub, id).await?;
-        super::save_body_to_file(body, &file_path, md5.clone()).await?;
 
         let output_path_stem = file_path
             .file_stem()
@@ -89,6 +92,15 @@ pub async fn handle_google_drive(
         );
 
         let final_output_path = file_path.with_file_name(out_name);
+
+        if let Some(op) = &op {
+            if check_path_exists(&final_output_path, op).await? {
+                tracing::warn!("File already exists on remote");
+                continue;
+            }
+        };
+
+        super::save_body_to_file(body, &file_path, md5.clone()).await?;
 
         let encode_output_path = file_path
             .with_file_name((output_path_stem.clone() + "_temp." + output_path_ext).as_ref());

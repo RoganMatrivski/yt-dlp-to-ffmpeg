@@ -64,3 +64,22 @@ pub async fn copy_path_to_b2(path: &std::path::Path, op: &opendal::Operator) -> 
 
     Ok(())
 }
+
+pub async fn check_path_exists(
+    path: &std::path::Path,
+    op: &opendal::Operator,
+) -> Result<bool, Error> {
+    let filename = path
+        .file_name()
+        .wrap_err("Invalid filename")?
+        .to_string_lossy();
+
+    let urlencoded_filename = urlencoding::encode(&filename)
+        .replace("%27", "'")
+        .replace("%28", "(")
+        .replace("%29", ")");
+
+    tracing::trace!("Checking if {urlencoded_filename} exists...");
+
+    Ok(op.exists(&urlencoded_filename).await?)
+}

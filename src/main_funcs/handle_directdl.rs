@@ -1,6 +1,8 @@
 use crate::{
     funcs::{
-        ffmpeg::ffmpeg_transcode, ffprobe::ffprobe_path, opendal::copy_path_to_b2,
+        ffmpeg::ffmpeg_transcode,
+        ffprobe::ffprobe_path,
+        opendal::{check_path_exists, copy_path_to_b2},
         progressbar::create_indefinite_spinner,
     },
     init::DownloadOpts,
@@ -71,6 +73,13 @@ pub async fn handle_direct(
     let output_path = match args.target_dir {
         Some(ref x) => x.join(out_name),
         None => std::env::current_dir()?.join(out_name),
+    };
+
+    if let Some(op) = &op {
+        if check_path_exists(&output_path, op).await? {
+            tracing::warn!("File already exists on remote");
+            return Ok(());
+        }
     };
 
     ffmpeg_transcode(&url, &output_path, format!("{title} ({res})").as_str())?;
