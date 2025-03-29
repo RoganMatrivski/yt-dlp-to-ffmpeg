@@ -1,4 +1,5 @@
 use color_eyre::eyre::ContextCompat;
+use futures_util::StreamExt;
 
 use crate::{
     funcs::{
@@ -14,24 +15,10 @@ use crate::{
 pub async fn handle_direct(
     args: &DownloadOpts,
     i: Option<usize>,
-    id: &str,
+    url: &str,
     op: Option<opendal::Operator>,
 ) -> Result<(), color_eyre::eyre::Error> {
-    let pb = create_indefinite_spinner(MPB.clone(), format!("Fetching {id}"))?;
-
-    let res = ffprobe_path(id)?;
-
-    pb.finish_and_clear();
-
-    let video_stream = res
-        .streams
-        .iter()
-        .find(|x| x.codec_type == Some("video".to_string()))
-        .unwrap();
-
-    let res = video_stream.height.unwrap();
-
-    let response = reqwest::blocking::get(id)?;
+    let response = reqwest::get(url).await?;
     let content_disposition_str = response
         .headers()
         .get(reqwest::header::CONTENT_DISPOSITION)
@@ -52,7 +39,6 @@ pub async fn handle_direct(
 
     let id = title;
     let _thumbnail = ""; // TODO: Find out how to implement thumbnail in ffmpeg
-    let url = id;
     let ext = filepath
         .extension()
         .and_then(|x| x.to_str())
@@ -90,7 +76,62 @@ pub async fn handle_direct(
         }
     };
 
-    ffmpeg_transcode(&url, &output_path, format!("{title} ({res})").as_str())?;
+    let pb = create_indefinite_spinner(MPB.clone(), format!("Fetching {id}"))?;
+
+    let source = if args.download_first {
+        let temp_encode_path = output_path.with_file_name(format!(
+            "{}_temp{}",
+            output_path.file_stem().unwrap().to_string_lossy(),
+            output_path
+                .extension()
+                .map_or(String::new(), |ext| format!(".{}", ext.to_string_lossy()))
+        ));
+
+        let file = tokio::fs::File::create(&temp_encode_path).await?;
+
+        let path = tempfile::TempPath::from_path(&temp_encode_path);
+
+        let pb = MPB.add(crate::funcs::progressbar::get_progbar(
+            response.content_length().unwrap(), // 'Unwrap' should be fine. If body is None, it'll throw early.
+            crate::consts::SUB_BAR_FMT_MSG,
+            crate::consts::MAIN_BAR_CHARSET,
+        )?);
+
+        let mut res_body = response.bytes_stream();
+
+        let mut wrapped_file = pb.wrap_async_write(file);
+        tracing::trace!("Downloading to {}", temp_encode_path.to_string_lossy());
+
+        while let Some(c) = res_body.next().await {
+            let c = c?;
+
+            tokio::io::copy(&mut c.as_ref(), &mut wrapped_file).await?;
+        }
+
+        pb.finish_and_clear();
+
+        path
+    } else {
+        tempfile::TempPath::from_path(id)
+    };
+
+    let res = ffprobe_path(&source)?;
+
+    pb.finish_and_clear();
+
+    let video_stream = res
+        .streams
+        .iter()
+        .find(|x| x.codec_type == Some("video".to_string()))
+        .unwrap();
+
+    let res = video_stream.height.unwrap();
+
+    ffmpeg_transcode(
+        &source.to_string_lossy(),
+        &output_path,
+        format!("{title} ({res})").as_str(),
+    )?;
 
     if let Some(op) = &op {
         copy_path_to_b2(&output_path, op).await?;

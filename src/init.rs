@@ -82,6 +82,12 @@ pub struct DownloadOpts {
     #[arg(short, long, default_value_t = 5)]
     pub retry: usize,
 
+    /// Download the file first instead of passing url to ffmpeg
+    /// Some services will ignore this option due to how their service work.
+    /// e.g. Google Drive
+    #[arg(long, action)]
+    pub download_first: bool,
+
     /// Path to the input file
     #[arg(
         short,

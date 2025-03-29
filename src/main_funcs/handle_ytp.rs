@@ -1,4 +1,5 @@
 use color_eyre::eyre::{ContextCompat, Error};
+use futures_util::StreamExt;
 
 use crate::{
     funcs::{
@@ -75,7 +76,50 @@ pub async fn handle_ytdlp(
         }
     };
 
-    ffmpeg_transcode(&url, &output_path, format!("{title} ({res})").as_str())?;
+    let source = if args.download_first {
+        let temp_encode_path = output_path.with_file_name(format!(
+            "{}_temp{}",
+            output_path.file_stem().unwrap().to_string_lossy(),
+            output_path
+                .extension()
+                .map_or(String::new(), |ext| format!(".{}", ext.to_string_lossy()))
+        ));
+
+        let file = tokio::fs::File::create(&temp_encode_path).await?;
+
+        let path = tempfile::TempPath::from_path(&temp_encode_path);
+
+        let response = reqwest::get(url).await?;
+
+        let pb = MPB.add(crate::funcs::progressbar::get_progbar(
+            response.content_length().unwrap(), // 'Unwrap' should be fine. If body is None, it'll throw early.
+            crate::consts::SUB_BAR_FMT_MSG,
+            crate::consts::MAIN_BAR_CHARSET,
+        )?);
+
+        let mut res_body = response.bytes_stream();
+
+        let mut wrapped_file = pb.wrap_async_write(file);
+        tracing::trace!("Downloading to {}", temp_encode_path.to_string_lossy());
+
+        while let Some(c) = res_body.next().await {
+            let c = c?;
+
+            tokio::io::copy(&mut c.as_ref(), &mut wrapped_file).await?;
+        }
+
+        pb.finish_and_clear();
+
+        path
+    } else {
+        tempfile::TempPath::from_path(url)
+    };
+
+    ffmpeg_transcode(
+        &source.to_string_lossy(),
+        &output_path,
+        format!("{title} ({res})").as_str(),
+    )?;
 
     if let Some(op) = &op {
         copy_path_to_b2(&output_path, op).await?;

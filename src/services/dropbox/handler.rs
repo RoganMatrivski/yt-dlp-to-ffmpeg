@@ -50,28 +50,6 @@ pub async fn handle_dropbox(
             format!("{}?dl=1", url)
         };
 
-        tracing::trace!("Getting {url}");
-
-        let res: Option<i64> = {
-            let pb = create_indefinite_spinner(MPB.clone(), format!("Fetching {url}"))?;
-
-            let res = if let Ok(x) = ffprobe_path(&url) {
-                let video_stream = x
-                    .streams
-                    .iter()
-                    .find(|x| x.codec_type == Some("video".to_string()))
-                    .unwrap();
-
-                Some(video_stream.height.unwrap())
-            } else {
-                None
-            };
-
-            pb.finish_and_clear();
-
-            res
-        };
-
         let title = path
             .file_stem()
             .and_then(|x| x.to_str())
@@ -112,8 +90,51 @@ pub async fn handle_dropbox(
             }
         };
 
+        tracing::trace!("Getting {url}");
+
+        let source = if args.download_first {
+            let temp_encode_path = output_path.with_file_name(format!(
+                "{}_temp{}",
+                output_path.file_stem().unwrap().to_string_lossy(),
+                output_path
+                    .extension()
+                    .map_or(String::new(), |ext| format!(".{}", ext.to_string_lossy()))
+            ));
+
+            let path = tempfile::TempPath::from_path(temp_encode_path);
+
+            super::download_shared_file(&client, &url, &path).await?;
+
+            path
+        } else {
+            tempfile::TempPath::from_path(url)
+        };
+
+        let res: Option<i64> = {
+            let pb = create_indefinite_spinner(
+                MPB.clone(),
+                format!("Fetching {}", source.to_string_lossy()),
+            )?;
+
+            let res = if let Ok(x) = ffprobe_path(&source) {
+                let video_stream = x
+                    .streams
+                    .iter()
+                    .find(|x| x.codec_type == Some("video".to_string()))
+                    .unwrap();
+
+                Some(video_stream.height.unwrap())
+            } else {
+                None
+            };
+
+            pb.finish_and_clear();
+
+            res
+        };
+
         ffmpeg_transcode(
-            &url,
+            &source.to_string_lossy(),
             &output_path,
             format!(
                 "{title} ({})",
